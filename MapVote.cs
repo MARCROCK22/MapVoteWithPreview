@@ -380,6 +380,7 @@ namespace MapVoteWithPreview {
                 lbl.horizontalAlignment = HorizontalAlignmentOptions.Right;
 
                 VoteOptionButtons.Add(new VoteOptionButton(VOTE_RANDOM_LABEL, 0, btn, true));
+                VoteOptionButtons[VoteOptionButtons.Count - 1].SetupRightClick();
                 return btn.rectTransform;
             });
 
@@ -411,6 +412,7 @@ namespace MapVoteWithPreview {
                     lbl.horizontalAlignment = HorizontalAlignmentOptions.Right;
 
                     VoteOptionButtons.Add(new VoteOptionButton(name, 0, btn));
+                    VoteOptionButtons[VoteOptionButtons.Count - 1].SetupRightClick();
                     return btn.rectTransform;
                 });
             }
