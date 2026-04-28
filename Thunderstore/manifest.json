@@ -1,0 +1,11 @@
+{
+    "name": "MapVoteWithPreview",
+    "version_number": "0.0.1",
+    "website_url": "",
+    "description": "Vote for the next map with your team + preview maps before voting with a freecam spectator mode",
+    "dependencies": [
+        "BepInEx-BepInExPack-5.4.2305",
+        "Zehs-REPOLib-3.0.4",
+        "nickklmao-MenuLib-2.5.1"
+    ]
+}

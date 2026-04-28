@@ -380,7 +380,6 @@ namespace MapVoteWithPreview {
                 lbl.horizontalAlignment = HorizontalAlignmentOptions.Right;
 
                 VoteOptionButtons.Add(new VoteOptionButton(VOTE_RANDOM_LABEL, 0, btn, true));
-                VoteOptionButtons[VoteOptionButtons.Count - 1].SetupRightClick();
                 return btn.rectTransform;
             });
 
@@ -393,6 +392,12 @@ namespace MapVoteWithPreview {
                     var btn = MenuAPI.CreateREPOButton(null, () => {
                         if(DisableInput)
                         {
+                            return;
+                        }
+                        // Shift+Click = preview, normal click = vote
+                        if (UnityEngine.Input.GetKey(KeyCode.LeftShift) && PreviewEnabled.Value)
+                        {
+                            Preview.MapPreviewManager.StartPreview(name);
                             return;
                         }
                         OwnVoteLevel = name;
@@ -412,8 +417,7 @@ namespace MapVoteWithPreview {
                     lbl.horizontalAlignment = HorizontalAlignmentOptions.Right;
 
                     VoteOptionButtons.Add(new VoteOptionButton(name, 0, btn));
-                    VoteOptionButtons[VoteOptionButtons.Count - 1].SetupRightClick();
-                    return btn.rectTransform;
+                        return btn.rectTransform;
                 });
             }
 

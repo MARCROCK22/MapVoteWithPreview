@@ -8,32 +8,6 @@ using UnityEngine;
 
 namespace MapVoteWithPreview
 {
-    internal sealed class RightClickDetector : MonoBehaviour
-    {
-        private string _level;
-        private RectTransform _rectTransform;
-
-        public void Initialize(string level)
-        {
-            _level = level;
-            _rectTransform = GetComponent<RectTransform>();
-        }
-
-        private void Update()
-        {
-            if (!UnityEngine.Input.GetMouseButtonDown(1)) return;
-            if (_rectTransform == null) return;
-
-            var canvas = GetComponentInParent<Canvas>();
-            Camera eventCamera = (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay) ? canvas.worldCamera : null;
-
-            if (RectTransformUtility.RectangleContainsScreenPoint(_rectTransform, UnityEngine.Input.mousePosition, eventCamera))
-            {
-                MapVoteWithPreview.Preview.MapPreviewManager.StartPreview(_level);
-            }
-        }
-    }
-
     internal sealed class VoteOptionButton
     {
         public string Level { get; set; }
@@ -61,13 +35,6 @@ namespace MapVoteWithPreview
             return votesNum;
         }
 
-        public void SetupRightClick()
-        {
-            if (IsRandomButton) return;
-            var detector = Button.gameObject.AddComponent<RightClickDetector>();
-            detector.Initialize(Level);
-        }
-
         public void UpdateLabel(bool _highlight = false, bool _disabled = false)
         {
             var votes = MapVote.CurrentVotes.Values;
@@ -91,7 +58,7 @@ namespace MapVoteWithPreview
 
             if (_disabled) sb.Append("</s>");
 
-            // Append previewing indicator if any player is previewing this level
+            // Show previewing indicator
             if (!IsRandomButton && MapVote.PreviewingPlayers.Values.Any(v => v == Level))
             {
                 sb.Append(Utilities.ColorString(" (previewing)", Color.gray));
@@ -100,8 +67,7 @@ namespace MapVoteWithPreview
             var votesLabel = Button.transform.GetChild(1);
             votesLabel.GetComponent<TextMeshProUGUI>().text = $"{Utilities.ColorString(new string('I', votesCount), Color.green)}{Utilities.ColorString(new string('I', playerCount - votesCount), Color.white)}";
 
-            Button.labelTMP.text =
-                $"{sb.ToString()}";
+            Button.labelTMP.text = $"{sb.ToString()}";
         }
     }
 }
