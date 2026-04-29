@@ -1,11 +1,12 @@
 {
     "name": "MapVoteWithPreview",
-    "version_number": "0.0.1",
+    "version_number": "0.0.2",
     "website_url": "https://github.com/MARCROCK22/MapVoteWithPreview",
-    "description": "Vote for the next map with your team + preview maps before voting with a freecam spectator mode",
+    "description": "Preview maps before voting with a freecam spectator mode. Requires MapVote.",
     "dependencies": [
-        "BepInEx-BepInExPack-5.4.2305",
+        "BepInEx-BepInExPack-5.4.2100",
         "Zehs-REPOLib-3.0.4",
-        "nickklmao-MenuLib-2.5.1"
+        "nickklmao-MenuLib-2.5.1",
+        "Patrick-MapVote-1.1.1"
     ]
 }

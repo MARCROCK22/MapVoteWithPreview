@@ -39,6 +39,11 @@ namespace MapVoteWithPreview.Preview
         // Grid spacing matching the game's module size (3 tiles * 5 units = 15)
         private const float MODULE_SPACING = 15f;
 
+        // Loading screen
+        private static bool _showLoadingScreen;
+        private static string _loadingLevelName;
+        private static Texture2D _blackTex;
+
         private void Awake()
         {
             if (Instance != null && Instance != this)
@@ -52,7 +57,7 @@ namespace MapVoteWithPreview.Preview
         public static void StartPreview(string levelName)
         {
             if (State != PreviewState.Idle) return;
-            if (!MapVote.PreviewEnabled.Value) return;
+            if (!Plugin.PreviewEnabled.Value) return;
             if (Instance == null) return;
 
             _previewLevelName = levelName;
@@ -70,12 +75,12 @@ namespace MapVoteWithPreview.Preview
             RestoreLobby();
             BroadcastPreviewEnd();
 
-            bool isInMenu = RunManager.instance.levelCurrent.name != MapVote.TRUCK_LEVEL_NAME;
-            MapVote.CreateVotePopup(isInMenu);
+            bool isInMenu = RunManager.instance.levelCurrent.name != MapVote.MapVote.TRUCK_LEVEL_NAME;
+            MapVote.MapVote.CreateVotePopup(isInMenu);
 
             State = PreviewState.Idle;
             _previewLevelName = null;
-            MapVote.Logger.LogInfo("[PREVIEW] Preview closed");
+            Plugin.Log.LogInfo("[PREVIEW] Preview closed");
         }
 
         public static void ForceClose()
@@ -99,6 +104,8 @@ namespace MapVoteWithPreview.Preview
 
         private static void CleanupPreview()
         {
+            _showLoadingScreen = false;
+
             if (_freecam != null)
             {
                 Destroy(_freecam.gameObject);
@@ -117,15 +124,15 @@ namespace MapVoteWithPreview.Preview
             string payload = (string)data.CustomData;
             var parts = payload.Split('|');
             if (parts.Length < 2) return;
-            MapVote.PreviewingPlayers[parts[0]] = parts[1];
-            MapVote.UpdateButtonLabels();
+            Plugin.PreviewingPlayers[parts[0]] = parts[1];
+            MapVote.MapVote.UpdateButtonLabels();
         }
 
         public static void HandlePreviewEnd(EventData data)
         {
             string playerName = (string)data.CustomData;
-            MapVote.PreviewingPlayers.Remove(playerName);
-            MapVote.UpdateButtonLabels();
+            Plugin.PreviewingPlayers.Remove(playerName);
+            MapVote.MapVote.UpdateButtonLabels();
         }
 
         private static Level _savedLevel;
@@ -133,12 +140,12 @@ namespace MapVoteWithPreview.Preview
         private static IEnumerator BuildPreview(string levelName)
         {
             State = PreviewState.Loading;
-            MapVote.Logger.LogInfo($"[PREVIEW] Building preview for: {levelName}");
+            Plugin.Log.LogInfo($"[PREVIEW] Building preview for: {levelName}");
 
             var runManager = Object.FindObjectOfType<RunManager>();
             if (runManager == null)
             {
-                MapVote.Logger.LogError("[PREVIEW] RunManager not found");
+                Plugin.Log.LogError("[PREVIEW] RunManager not found");
                 State = PreviewState.Idle;
                 yield break;
             }
@@ -146,13 +153,21 @@ namespace MapVoteWithPreview.Preview
             var level = runManager.levels.Find(l => l.name == levelName);
             if (level == null)
             {
-                MapVote.Logger.LogError($"[PREVIEW] Level '{levelName}' not found");
+                Plugin.Log.LogError($"[PREVIEW] Level '{levelName}' not found");
                 State = PreviewState.Idle;
                 yield break;
             }
 
-            if (MapVote.VotePopup != null)
-                MapVote.VotePopup.ClosePage(true);
+            if (MapVote.MapVote.VotePopup != null)
+                MapVote.MapVote.VotePopup.ClosePage(true);
+
+            // Show loading screen immediately
+            _loadingLevelName = levelName.Replace("Level - ", "");
+            _showLoadingScreen = true;
+
+            // Wait 2 frames so the loading screen renders before the freeze
+            yield return null;
+            yield return null;
 
             // Find LevelGenerator BEFORE disabling lobby (it's on a root object)
             var levelGen = Object.FindObjectOfType<LevelGenerator>();
@@ -175,7 +190,7 @@ namespace MapVoteWithPreview.Preview
             }
             catch (System.Exception ex)
             {
-                MapVote.Logger.LogWarning($"[PREVIEW] Procedural generation failed: {ex.Message}, falling back to grid");
+                Plugin.Log.LogWarning($"[PREVIEW] Procedural generation failed: {ex.Message}, falling back to grid");
             }
 
             if (!generated)
@@ -201,13 +216,16 @@ namespace MapVoteWithPreview.Preview
             var freecamObj = new GameObject("MapPreviewFreecam");
             freecamObj.hideFlags = HideFlags.HideAndDontSave;
             _freecam = freecamObj.AddComponent<FreecamController>();
-            _freecam.Initialize(MapVote.FreecamSpeed.Value, camStart);
+            _freecam.Initialize(Plugin.FreecamSpeed.Value, camStart);
             _freecam.ApplyLevelEffects(level);
+
+            // Hide loading screen
+            _showLoadingScreen = false;
 
             BroadcastPreviewStart(levelName);
 
             State = PreviewState.Previewing;
-            MapVote.Logger.LogInfo($"[PREVIEW] Now previewing: {levelName}");
+            Plugin.Log.LogInfo($"[PREVIEW] Now previewing: {levelName}");
         }
 
         private class PreviewTile
@@ -227,7 +245,7 @@ namespace MapVoteWithPreview.Preview
 
         private static bool TryProceduralGeneration(RunManager runManager, Level level, LevelGenerator levelGen)
         {
-            MapVote.Logger.LogInfo("[PREVIEW] Attempting procedural generation (exact game algorithm)...");
+            Plugin.Log.LogInfo("[PREVIEW] Attempting procedural generation (exact game algorithm)...");
 
             _savedLevel = runManager.levelCurrent;
 
@@ -421,7 +439,7 @@ namespace MapVoteWithPreview.Preview
                 var startRef = level.StartRooms[Random.Range(0, level.StartRooms.Count)];
                 if (startRef != null && startRef.Prefab != null)
                 {
-                    MapVote.Logger.LogInfo($"[PREVIEW] Start room at origin (0,0,0) — game exact");
+                    Plugin.Log.LogInfo($"[PREVIEW] Start room at origin (0,0,0) — game exact");
                     var clone = Object.Instantiate(startRef.Prefab, origin, Quaternion.identity, _previewRoot.transform);
 
                     var module = clone.GetComponent<Module>();
@@ -451,14 +469,14 @@ namespace MapVoteWithPreview.Preview
             {
                 // Position: same as bottom of tile (startX,0) = (0, 0, 7.5 - 7.5) = (0, 0, 0)
                 var truckConnPos = origin;
-                MapVote.Logger.LogInfo($"[CONN] Truck connection at pos=(0,0,0)");
+                Plugin.Log.LogInfo($"[CONN] Truck connection at pos=(0,0,0)");
                 var truckConn = Object.Instantiate(level.ConnectObject, truckConnPos, Quaternion.identity, _previewRoot.transform);
                 StripComponents(truckConn);
             }
 
             // Log start room position
-            MapVote.Logger.LogInfo($"[PREVIEW] Start room at grid({startX},{startY}), world origin={origin}, moduleWidth={moduleWidth}");
-            MapVote.Logger.LogInfo($"[PREVIEW] Start grid formula: x={startX * moduleWidth - (LW / 2) * moduleWidth}, z={startY * moduleWidth + moduleWidth / 2f}");
+            Plugin.Log.LogInfo($"[PREVIEW] Start room at grid({startX},{startY}), world origin={origin}, moduleWidth={moduleWidth}");
+            Plugin.Log.LogInfo($"[PREVIEW] Start grid formula: x={startX * moduleWidth - (LW / 2) * moduleWidth}, z={startY * moduleWidth + moduleWidth / 2f}");
 
             // Spawn modules (exact game position formula)
             int spawned = 0;
@@ -538,7 +556,7 @@ namespace MapVoteWithPreview.Preview
 
                     if (prefab != null)
                     {
-                        MapVote.Logger.LogInfo($"[PREVIEW] Module grid({x},{y}) type={grid[x,y].type} pos={position - origin} rot={rotation} prefab={prefab.name}");
+                        Plugin.Log.LogInfo($"[PREVIEW] Module grid({x},{y}) type={grid[x,y].type} pos={position - origin} rot={rotation} prefab={prefab.name}");
                         var clone = Object.Instantiate(prefab, position, Quaternion.Euler(rotation), _previewRoot.transform);
 
                         // Set module connections BEFORE stripping (so ModulePropSwitch.Setup works)
@@ -587,7 +605,7 @@ namespace MapVoteWithPreview.Preview
                         if (y + 1 < LH && grid[x, y + 1].active && !grid[x, y + 1].connectedBot)
                         {
                             var pos = origin + new Vector3(num, 0f, num2 + moduleWidth / 2f);
-                            MapVote.Logger.LogInfo($"[CONN] Top: grid({x},{y})->({x},{y+1}) pos={pos - origin}");
+                            Plugin.Log.LogInfo($"[CONN] Top: grid({x},{y})->({x},{y+1}) pos={pos - origin}");
                             var conn = Object.Instantiate(level.ConnectObject, pos, Quaternion.identity, _previewRoot.transform);
                             StripComponents(conn);
                             grid[x, y].connectedTop = true;
@@ -597,7 +615,7 @@ namespace MapVoteWithPreview.Preview
                         if (x + 1 < LW && grid[x + 1, y].active && !grid[x + 1, y].connectedLeft)
                         {
                             var pos = origin + new Vector3(num + moduleWidth / 2f, 0f, num2);
-                            MapVote.Logger.LogInfo($"[CONN] Right: grid({x},{y})->({x+1},{y}) pos={pos - origin} rot=90");
+                            Plugin.Log.LogInfo($"[CONN] Right: grid({x},{y})->({x+1},{y}) pos={pos - origin} rot=90");
                             var conn = Object.Instantiate(level.ConnectObject, pos, Quaternion.Euler(0f, 90f, 0f), _previewRoot.transform);
                             StripComponents(conn);
                             grid[x, y].connectedRight = true;
@@ -607,7 +625,7 @@ namespace MapVoteWithPreview.Preview
                         if (y - 1 >= 0 && grid[x, y - 1].active && !grid[x, y - 1].connectedTop)
                         {
                             var pos = origin + new Vector3(num, 0f, num2 - moduleWidth / 2f);
-                            MapVote.Logger.LogInfo($"[CONN] Bottom: grid({x},{y})->({x},{y-1}) pos={pos - origin}");
+                            Plugin.Log.LogInfo($"[CONN] Bottom: grid({x},{y})->({x},{y-1}) pos={pos - origin}");
                             var conn = Object.Instantiate(level.ConnectObject, pos, Quaternion.identity, _previewRoot.transform);
                             StripComponents(conn);
                             grid[x, y].connectedBot = true;
@@ -617,7 +635,7 @@ namespace MapVoteWithPreview.Preview
                         if (x - 1 >= 0 && grid[x - 1, y].active && !grid[x - 1, y].connectedRight)
                         {
                             var pos = origin + new Vector3(num - moduleWidth / 2f, 0f, num2);
-                            MapVote.Logger.LogInfo($"[CONN] Left: grid({x},{y})->({x-1},{y}) pos={pos - origin}");
+                            Plugin.Log.LogInfo($"[CONN] Left: grid({x},{y})->({x-1},{y}) pos={pos - origin}");
                             var conn = Object.Instantiate(level.ConnectObject, pos, Quaternion.identity, _previewRoot.transform);
                             StripComponents(conn);
                             grid[x, y].connectedLeft = true;
@@ -631,7 +649,7 @@ namespace MapVoteWithPreview.Preview
 
             runManager.levelCurrent = _savedLevel;
 
-            MapVote.Logger.LogInfo($"[PREVIEW] Procedural generation complete: {spawned} modules + start room on {LW}x{LH} grid");
+            Plugin.Log.LogInfo($"[PREVIEW] Procedural generation complete: {spawned} modules + start room on {LW}x{LH} grid");
             return spawned > 0;
         }
 
@@ -750,7 +768,7 @@ namespace MapVoteWithPreview.Preview
                 _disabledRootObjects.Add(root);
             }
 
-            MapVote.Logger.LogInfo($"[PREVIEW] Disabled {_disabledRootObjects.Count} root objects");
+            Plugin.Log.LogInfo($"[PREVIEW] Disabled {_disabledRootObjects.Count} root objects");
         }
 
         private static void RestoreLobby()
@@ -768,7 +786,7 @@ namespace MapVoteWithPreview.Preview
             RenderSettings.fogMode = _savedFogMode;
             RenderSettings.ambientLight = _savedAmbientLight;
 
-            MapVote.Logger.LogInfo($"[PREVIEW] Re-enabled {_disabledRootObjects.Count} root objects");
+            Plugin.Log.LogInfo($"[PREVIEW] Re-enabled {_disabledRootObjects.Count} root objects");
             _disabledRootObjects.Clear();
         }
 
@@ -776,7 +794,7 @@ namespace MapVoteWithPreview.Preview
         {
             if (!SemiFunc.IsMultiplayer()) return;
             string playerName = PhotonNetwork.LocalPlayer.NickName;
-            MapVote.OnPreviewStart?.RaiseEvent(
+            Plugin.OnPreviewStart?.RaiseEvent(
                 $"{playerName}|{levelName}",
                 NetworkingEvents.RaiseOthers,
                 SendOptions.SendReliable);
@@ -786,7 +804,7 @@ namespace MapVoteWithPreview.Preview
         {
             if (!SemiFunc.IsMultiplayer()) return;
             string playerName = PhotonNetwork.LocalPlayer.NickName;
-            MapVote.OnPreviewEnd?.RaiseEvent(
+            Plugin.OnPreviewEnd?.RaiseEvent(
                 playerName,
                 NetworkingEvents.RaiseOthers,
                 SendOptions.SendReliable);
@@ -794,6 +812,39 @@ namespace MapVoteWithPreview.Preview
 
         private void OnGUI()
         {
+            // Loading screen overlay
+            if (_showLoadingScreen)
+            {
+                if (_blackTex == null)
+                {
+                    _blackTex = new Texture2D(1, 1);
+                    _blackTex.SetPixel(0, 0, Color.black);
+                    _blackTex.Apply();
+                }
+
+                GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), _blackTex);
+
+                var titleStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 36,
+                    alignment = TextAnchor.MiddleCenter
+                };
+                titleStyle.normal.textColor = Color.white;
+
+                var subtitleStyle = new GUIStyle(GUI.skin.label)
+                {
+                    fontSize = 18,
+                    alignment = TextAnchor.MiddleCenter
+                };
+                subtitleStyle.normal.textColor = new Color(0.7f, 0.7f, 0.7f);
+
+                GUI.Label(new Rect(0, Screen.height / 2f - 40f, Screen.width, 50f),
+                    _loadingLevelName, titleStyle);
+                GUI.Label(new Rect(0, Screen.height / 2f + 20f, Screen.width, 30f),
+                    "Loading preview...", subtitleStyle);
+                return;
+            }
+
             if (State != PreviewState.Previewing) return;
 
             // Back button
@@ -808,7 +859,7 @@ namespace MapVoteWithPreview.Preview
             }
 
             // Info label
-            string mapName = Utilities.RemoveLevelPrefix(_previewLevelName ?? "");
+            string mapName = (_previewLevelName ?? "").Replace("Level - ", "");
             var style = new GUIStyle(GUI.skin.label) { fontSize = 16 };
             style.normal.textColor = Color.white;
             GUI.Label(new Rect(10f, 10f, 600f, 30f),

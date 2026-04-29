@@ -6,12 +6,8 @@
     <AssemblyName>MapVoteWithPreview</AssemblyName>
     <Product>MapVoteWithPreview</Product>
     <RootNamespace>MapVoteWithPreview</RootNamespace>
-    <Version>0.0.1</Version>
+    <Version>0.0.2</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <EnableGameReferences>true</EnableGameReferences>
-    <EnableUnityReferences>true</EnableUnityReferences>
-    <!-- Point plugin output to local build/ folder to avoid recursive Plugins/ inclusion -->
-    <PluginOutputDirectory>$(MSBuildProjectDirectory)\build\MapVoteWithPreview\</PluginOutputDirectory>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -23,9 +19,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
     <PackageReference Include="BepInEx.AssemblyPublicizer.MSBuild" Version="0.4.1" PrivateAssets="all" IncludeAssets="build" />
-    <PackageReference Include="Linkoid.Repo.Plugin.Build" Version="*" PrivateAssets="all" />
     <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" PrivateAssets="all" />
     <PackageReference Include="BepInEx.Core" Version="5.*" ExcludeAssets="runtime" />
     <PackageReference Include="UnityEngine.Modules" Version="2022.3.62" IncludeAssets="compile" PrivateAssets="all" />
@@ -41,15 +35,15 @@
       <HintPath>Plugins\REPOLib.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="Patrick.MapVote" Publicize="true">
+      <HintPath>lib\Patrick.MapVote.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 
-  <!-- Exclude config/meta files from plugin output bundling -->
-  <ItemGroup>
-    <None Update="NuGet.config">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </None>
-    <None Update=".gitignore">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
+  <Target Name="PackThunderstore" AfterTargets="Build">
+    <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll" DestinationFolder="Thunderstore" />
+    <ZipDirectory SourceDirectory="Thunderstore" DestinationFile="$(MSBuildProjectDirectory)\..\build\$(AssemblyName)-$(Version).zip" Overwrite="true" />
+    <Delete Files="Thunderstore\$(AssemblyName).dll" />
+  </Target>
 </Project>

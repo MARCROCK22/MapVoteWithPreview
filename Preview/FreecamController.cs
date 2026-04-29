@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEngine.Rendering.PostProcessing;
 
+using MapVoteWithPreview;
+
 namespace MapVoteWithPreview.Preview
 {
     public class FreecamController : MonoBehaviour
@@ -49,7 +51,7 @@ namespace MapVoteWithPreview.Preview
             }
             catch (System.Exception ex)
             {
-                MapVote.Logger.LogWarning($"[PREVIEW] PostProcessLayer setup failed: {ex.Message}");
+                Plugin.Log.LogWarning($"[PREVIEW] PostProcessLayer setup failed: {ex.Message}");
             }
 
             gameObject.AddComponent<AudioListener>();
@@ -142,7 +144,7 @@ namespace MapVoteWithPreview.Preview
 
             _ppVolume.profile = profile;
 
-            MapVote.Logger.LogInfo($"[PREVIEW] Applied post-processing: bloom={level.BloomIntensity}, colorFilter={level.ColorFilter}, vignette={level.VignetteIntensity}, +chromaticAberration, grain, motionBlur, autoExposure");
+            Plugin.Log.LogInfo($"[PREVIEW] Applied post-processing: bloom={level.BloomIntensity}, colorFilter={level.ColorFilter}, vignette={level.VignetteIntensity}, +chromaticAberration, grain, motionBlur, autoExposure");
         }
 
         private void Update()

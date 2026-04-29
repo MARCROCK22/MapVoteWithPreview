@@ -4,4 +4,6 @@ obj/
 *.suo
 .vs/
 build/
+lib/
 Plugins/
+Thunderstore/*.dll
